@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Room</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <style>
+      *,
+      html,
+      body {
+        font-family: Vazirmatn, sans-serif;
+      }
+    </style>
+  </head>
+
+  <body class="h-screen flex items-center justify-center">
+    <div class="w-full max-w-md">
+      <h1 class="text-3xl text-center mb-6">Create a Chat Room</h1>
+      <form id="createRoomForm" class="bg-white p-6 rounded-lg shadow-lg">
+        <label for="roomName" class="block mb-2 text-lg">Room Name:</label>
+        <input
+          type="text"
+          id="roomName"
+          name="roomName"
+          class="w-full p-2 mb-4 border rounded"
+          required
+        />
+        <label for="username" class="block mb-2 text-lg">Your Username:</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          class="w-full p-2 mb-4 border rounded"
+          required
+        />
+        <button
+          type="submit"
+          class="w-full bg-blue-500 text-white py-2 rounded"
+        >
+          Create Room
+        </button>
+      </form>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const createRoomForm = document.getElementById("createRoomForm");
+        if (createRoomForm) {
+          createRoomForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const roomName = document.getElementById("roomName").value;
+            const username = document.getElementById("username").value;
+
+            if (username && roomName) {
+              localStorage.setItem("username", username);
+              window.location.href = `/room/${roomName}`;
+            }
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

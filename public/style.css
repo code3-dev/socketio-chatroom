@@ -1,0 +1,144 @@
+body {
+  font-family: Vazirmatn, sans-serif;
+  background-color: #1a202c;
+  color: #e2e8f0;
+}
+
+*,
+html {
+  font-family: Vazirmatn, sans-serif;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.chat-container {
+  background-color: #2d3748;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.chat-bubble-left {
+  background-color: #4a5568;
+}
+
+.chat-bubble-right {
+  background-color: #3182ce;
+}
+
+.chat-input {
+  background-color: #4a5568;
+  color: #e2e8f0;
+}
+
+.chat-input::placeholder {
+  color: #a0aec0;
+}
+
+.chat-input:focus {
+  ring-color: #3182ce;
+}
+
+.send-button {
+  background-color: #3182ce;
+}
+
+.send-button:hover {
+  background-color: #2b6cb0;
+}
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background-color: #4a5568;
+  border-radius: 4px;
+}
+
+.scrollbar-custom {
+  scrollbar-width: thin;
+  scrollbar-color: #4a5568 transparent;
+}
+
+.image-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.image-container img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.image-container:hover img {
+  transform: scale(1.05);
+}
+
+.download-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.download-overlay p {
+  margin: 0;
+  color: #fff;
+  font-size: 14px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-overlay button {
+  background-color: #3182ce;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.download-overlay button:hover {
+  background-color: #2b6cb0;
+}
+
+.chatroom-form {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #2d3748;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #4a5568;
+}
+
+#chatMessages {
+  flex: 1;
+  padding-bottom: 60px;
+  overflow-y: auto;
+}
