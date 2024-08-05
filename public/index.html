@@ -21,7 +21,7 @@
   </head>
 
   <body class="h-screen flex items-center justify-center">
-    <div class="w-full max-w-md">
+    <div class="w-full max-w-md relative">
       <h1 class="text-3xl text-center mb-6">Create a Chat Room</h1>
       <form id="createRoomForm" class="bg-white p-6 rounded-lg shadow-lg">
         <label for="roomName" class="block mb-2 text-lg">Room Name:</label>
@@ -47,20 +47,91 @@
           Create Room
         </button>
       </form>
+      <div
+        id="errorAlert"
+        class="hidden mt-4 p-2 bg-red-500 text-white text-center rounded"
+      ></div>
+      <div
+        id="loader"
+        class="hidden absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75"
+      >
+        <div
+          class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16"
+        ></div>
+      </div>
     </div>
+
+    <style>
+      .loader {
+        border-top-color: #3498db;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         const createRoomForm = document.getElementById("createRoomForm");
+        const errorAlert = document.getElementById("errorAlert");
+        const loader = document.getElementById("loader");
+
         if (createRoomForm) {
-          createRoomForm.addEventListener("submit", (e) => {
+          createRoomForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             const roomName = document.getElementById("roomName").value;
             const username = document.getElementById("username").value;
 
             if (username && roomName) {
-              localStorage.setItem("username", username);
-              window.location.href = `/room/${roomName}`;
+              loader.classList.remove("hidden");
+              errorAlert.classList.add("hidden");
+
+              try {
+                const response = await fetch("/login", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ username }),
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                  localStorage.setItem("token", data.token);
+                  localStorage.setItem("username", username);
+
+                  // Check room name format
+                  const roomNameRegex = /^[A-Za-z0-9-_@#$]+$/;
+                  if (roomName.length > 20) {
+                    throw new Error(
+                      `Room Name exceeds the maximum length of 20 characters`
+                    );
+                  }
+                  if (!roomNameRegex.test(roomName)) {
+                    throw new Error(
+                      `Invalid room Name format. Only alphanumeric characters (A-Z, a-z, 0-9) and special characters (-, _, @, #, $) are allowed`
+                    );
+                  }
+
+                  window.location.href = `/room/${roomName}`;
+                } else {
+                  throw new Error(
+                    data.error || "Failed to authenticate. Please try again."
+                  );
+                }
+              } catch (error) {
+                console.error("Error during authentication:", error);
+                errorAlert.textContent =
+                  error.message || "Failed to authenticate. Please try again.";
+                errorAlert.classList.remove("hidden");
+              } finally {
+                loader.classList.add("hidden");
+              }
             }
           });
         }

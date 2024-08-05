@@ -30,9 +30,7 @@
       <div
         class="p-4 border-b border-gray-700 flex justify-between items-center"
       >
-        <h1 class="text-xl font-semibold">
-          <span id="roomName"></span>
-        </h1>
+        <h1 class="text-xl font-semibold"><span id="roomName"></span></h1>
         <button
           id="logoutButton"
           class="text-gray-400 hover:text-white transition duration-200"
@@ -80,136 +78,197 @@
     </div>
     <script>
       document.addEventListener("DOMContentLoaded", () => {
-        const socket = io();
+        let socket;
+        let token;
 
-        const chatMessages = document.getElementById("chatMessages");
-        const chatInput = document.getElementById("chatInput");
-        const sendButton = document.getElementById("sendButton");
-        const fileInput = document.getElementById("fileInput");
-        const roomNameElement = document.getElementById("roomName");
-        const logoutButton = document.getElementById("logoutButton");
-        const usernameAlert = document.getElementById("usernameAlert");
-
-        if (roomNameElement) {
-          const room = window.location.pathname.split("/").pop();
-          const username = localStorage.getItem("username");
-
-          if (!username) {
-            usernameAlert.classList.remove("hidden");
-            alert("Please set your username:");
-
-            const newUsername = prompt("Enter your username:");
-
-            if (newUsername) {
-              localStorage.setItem("username", newUsername.trim());
-              usernameAlert.classList.add("hidden");
-              location.reload();
-            } else {
-              alert("Username not set. Please refresh and set a username.");
-              location.reload();
-            }
+        async function authenticate(username) {
+          const response = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+          });
+          const data = await response.json();
+          if (response.ok && data.token) {
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("username", username);
+            location.reload(); // Reload the page to ensure the username is set correctly
+            return data.token;
+          } else if (data.error === "Username already exists") {
+            throw new Error(
+              "Username already exists. Please choose a different username."
+            );
           } else {
-            roomNameElement.textContent = room;
-            socket.emit("joinRoom", room, username);
+            throw new Error(
+              data.error || "Failed to authenticate. Please try again."
+            );
+          }
+        }
 
-            sendButton.addEventListener("click", () => {
-              if (chatInput.value) {
-                socket.emit("chatMessage", {
-                  room,
-                  username,
-                  message: chatInput.value,
-                });
-                chatInput.value = "";
-              }
-            });
+        function connectSocket() {
+          socket = io({
+            auth: { token: localStorage.getItem("token") },
+          });
 
-            chatInput.addEventListener("keydown", (event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-              }
-            });
+          socket.on("connect", () => {
+            console.log("Connected to server");
+          });
 
-            function sendMessage() {
-              if (chatInput.value.trim() !== "") {
-                socket.emit("chatMessage", {
-                  room,
-                  username,
-                  message: chatInput.value.trim(),
-                });
-                chatInput.value = "";
-              }
-            }
+          socket.on("disconnect", () => {
+            console.log("Disconnected from server. Retrying...");
+            retryConnection();
+          });
 
-            fileInput.addEventListener("change", async (event) => {
-              const files = event.target.files;
-              const username = localStorage.getItem("username");
+          setupEventListeners();
+        }
 
-              for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const reader = new FileReader();
+        function retryConnection() {
+          setTimeout(() => {
+            connectSocket();
+          }, 2000);
+        }
 
-                const uploadStatus = document.getElementById("uploadStatus");
-                uploadStatus.classList.remove("hidden");
-                uploadStatus.textContent = `Uploading ${file.name}...`;
+        async function setupEventListeners() {
+          const chatMessages = document.getElementById("chatMessages");
+          const chatInput = document.getElementById("chatInput");
+          const sendButton = document.getElementById("sendButton");
+          const fileInput = document.getElementById("fileInput");
+          const roomNameElement = document.getElementById("roomName");
+          const logoutButton = document.getElementById("logoutButton");
+          const usernameAlert = document.getElementById("usernameAlert");
 
-                reader.onload = async () => {
-                  if (!navigator.onLine) {
-                    showError();
-                    return;
+          if (roomNameElement) {
+            const room = window.location.pathname.split("/").pop();
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+              usernameAlert.classList.remove("hidden");
+              alert("Please set your username:");
+
+              async function promptUsername() {
+                let authenticated = false;
+                while (!authenticated) {
+                  const username = prompt("Enter your username:");
+                  if (username) {
+                    try {
+                      await authenticate(username);
+                      authenticated = true;
+                      location.reload();
+                    } catch (error) {
+                      if (
+                        error.message ===
+                        "Username already exists. Please choose a different username."
+                      ) {
+                        alert(error.message);
+                      } else {
+                        alert(error.message);
+                      }
+                    }
+                  } else {
+                    alert(
+                      "Username not set. Please refresh and set a username."
+                    );
+                    location.reload();
                   }
-
-                  const base64Data = reader.result.split(",")[1];
-                  socket.emit("uploadFile", {
-                    room,
-                    base64Data,
-                    fileName: file.name,
-                    contentType: file.type,
-                    username: username,
-                  });
-
-                  socket.once("fileUploaded", () => {
-                    uploadStatus.classList.add("hidden");
-                  });
-
-                  socket.once("uploadError", (error) => {
-                    showError();
-                  });
-                };
-
-                reader.onerror = () => {
-                  showError();
-                };
-
-                reader.readAsDataURL(file);
+                }
               }
 
-              fileInput.value = null;
-            });
+              // Call promptUsername on load if no token is found
+              if (!localStorage.getItem("token")) {
+                promptUsername();
+              }
+            } else {
+              roomNameElement.textContent = room;
+              socket.emit("joinRoom", room);
 
-            function showError() {
-              const uploadStatus = document.getElementById("uploadStatus");
-              uploadStatus.textContent = "Error, please select a new file.";
-              setTimeout(() => {
-                uploadStatus.classList.add("hidden");
-              }, 2500);
-            }
+              sendButton.addEventListener("click", () => {
+                sendMessage();
+              });
 
-            socket.on("userJoined", ({ username }) => {
-              const joinedMessage = document.createElement("div");
-              joinedMessage.innerHTML = `
-        <p class="text-gray-400 text-sm">${username} joined the room</p>
-      `;
-              chatMessages.appendChild(joinedMessage);
-              chatMessages.scrollTop = chatMessages.scrollHeight;
-            });
+              chatInput.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  sendMessage();
+                }
+              });
 
-            socket.on("chatMessage", (msg) => {
-              const msgDiv = document.createElement("div");
-              msgDiv.classList.add("mb-4");
-              if (msg.username === username) {
-                msgDiv.classList.add("flex", "justify-end");
-                msgDiv.innerHTML = `
+              function sendMessage() {
+                if (chatInput.value.trim() !== "") {
+                  socket.emit("chatMessage", {
+                    room,
+                    message: chatInput.value.trim(),
+                  });
+                  chatInput.value = "";
+                }
+              }
+
+              fileInput.addEventListener("change", async (event) => {
+                const files = event.target.files;
+
+                for (let i = 0; i < files.length; i++) {
+                  const file = files[i];
+                  const reader = new FileReader();
+
+                  const uploadStatus = document.getElementById("uploadStatus");
+                  uploadStatus.classList.remove("hidden");
+                  uploadStatus.textContent = `Uploading ${file.name}...`;
+
+                  reader.onload = async () => {
+                    if (!navigator.onLine) {
+                      showError();
+                      return;
+                    }
+
+                    const base64Data = reader.result.split(",")[1];
+                    socket.emit("uploadFile", {
+                      room,
+                      base64Data,
+                      fileName: file.name,
+                      contentType: file.type,
+                    });
+
+                    socket.once("fileUploaded", () => {
+                      uploadStatus.classList.add("hidden");
+                    });
+
+                    socket.once("uploadError", (error) => {
+                      showError();
+                    });
+                  };
+
+                  reader.onerror = () => {
+                    showError();
+                  };
+
+                  reader.readAsDataURL(file);
+                }
+
+                fileInput.value = null;
+              });
+
+              function showError() {
+                const uploadStatus = document.getElementById("uploadStatus");
+                uploadStatus.textContent = "Error, please select a new file.";
+                setTimeout(() => {
+                  uploadStatus.classList.add("hidden");
+                }, 2500);
+              }
+
+              socket.on("userJoined", ({ username }) => {
+                const joinedMessage = document.createElement("div");
+                joinedMessage.innerHTML = `
+            <p class="text-gray-400 text-sm">${username} joined the room</p>
+          `;
+                chatMessages.appendChild(joinedMessage);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              });
+
+              socket.on("chatMessage", (msg) => {
+                const msgDiv = document.createElement("div");
+                msgDiv.classList.add("mb-4");
+
+                if (msg.username === localStorage.getItem("username")) {
+                  msgDiv.classList.add("flex", "justify-end");
+                  msgDiv.innerHTML = `
               <div>
                 <p class="text-sm text-gray-400 mb-1 text-right">You</p>
                 <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none">
@@ -217,9 +276,9 @@
                 </div>
                 <p class="text-xs text-gray-600 mt-1 text-right">${new Date().toLocaleTimeString()}</p>
               </div>`;
-              } else {
-                msgDiv.classList.add("flex");
-                msgDiv.innerHTML = `
+                } else {
+                  msgDiv.classList.add("flex");
+                  msgDiv.innerHTML = `
               <div>
                 <p class="text-sm text-gray-400 mb-1">${msg.username}</p>
                 <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
@@ -227,45 +286,72 @@
                 </div>
                 <p class="text-xs text-gray-600 mt-1">${new Date().toLocaleTimeString()}</p>
               </div>`;
-              }
-              chatMessages.appendChild(msgDiv);
-              chatMessages.scrollTop = chatMessages.scrollHeight;
-            });
+                }
+                chatMessages.appendChild(msgDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              });
 
-            socket.on("fileUploaded", (data) => {
-              const fileDiv = document.createElement("div");
-              const file = data.file;
-              fileDiv.classList.add("mb-4");
-              fileDiv.innerHTML = `
-            <div>
-              <p class="text-sm text-gray-400 mb-1">${username}</p>
-              <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
-                <p>Check out this image!</p>
-                <div class="image-container mt-2">
-                  <img src="${file.url}" alt="${file.fileName}">
-                  <div class="download-overlay">
-                    <a href="${file.url}" target="_blank" download="${
-                file.fileName
-              }">
-                      <i class="fas fa-download"></i> Download
-                    </a>
+              socket.on("fileUploaded", (data) => {
+                const fileDiv = document.createElement("div");
+                const file = data.file;
+                fileDiv.classList.add("mb-4");
+
+                if (data.username === localStorage.getItem("username")) {
+                  fileDiv.classList.add("flex", "justify-end");
+                  fileDiv.innerHTML = `
+              <div>
+                <p class="text-sm text-gray-400 mb-1 text-right">You</p>
+                <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none">
+                  <div class="image-container mt-2">
+                    <img src="${file.url}" alt="${file.fileName}">
+                    <div class="download-overlay">
+                      <a href="${file.url}" target="_blank" download="${
+                    file.fileName
+                  }">
+                        <i class="fas fa-download"></i> Download
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <p class="text-xs text-gray-600 mt-1">${new Date().toLocaleTimeString()}</p>
-            </div>`;
-              chatMessages.appendChild(fileDiv);
-              chatMessages.scrollTop = chatMessages.scrollHeight;
-            });
+                <p class="text-xs text-gray-600 mt-1 text-right">${new Date().toLocaleTimeString()}</p>
+              </div>`;
+                } else {
+                  fileDiv.classList.add("flex");
+                  fileDiv.innerHTML = `
+              <div>
+                <p class="text-sm text-gray-400 mb-1">${data.username}</p>
+                <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
+                  <div class="image-container mt-2">
+                    <img src="${file.url}" alt="${file.fileName}">
+                    <div class="download-overlay">
+                      <a href="${file.url}" target="_blank" download="${
+                    file.fileName
+                  }">
+                        <i class="fas fa-download"></i> Download
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <p class="text-xs text-gray-600 mt-1">${new Date().toLocaleTimeString()}</p>
+              </div>`;
+                }
 
-            logoutButton.addEventListener("click", () => {
-              if (confirm("Are you sure you want to logout from the chat?")) {
-                localStorage.removeItem("username");
-                window.location.href = "/";
-              }
-            });
+                chatMessages.appendChild(fileDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              });
+
+              logoutButton.addEventListener("click", () => {
+                if (confirm("Are you sure you want to logout from the chat?")) {
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("username");
+                  window.location.href = "/";
+                }
+              });
+            }
           }
         }
+
+        connectSocket();
       });
     </script>
   </body>
