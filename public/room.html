@@ -28,19 +28,21 @@
       class="chat-container w-full max-w-md md:max-w-lg rounded-xl shadow-lg flex flex-col overflow-hidden h-full"
     >
       <div
-        class="p-4 border-b border-gray-700 flex justify-between items-center"
+        class="p-4 border-b border-gray-700 flex justify-between items-center fixed-top bg-gray-900"
       >
-        <h1 class="text-xl font-semibold"><span id="roomName"></span></h1>
+        <h1 class="text-xl font-semibold text-white">
+          <span id="roomName"></span> (Online: <span id="onlineCount">0</span>)
+        </h1>
         <button
           id="logoutButton"
           class="text-gray-400 hover:text-white transition duration-200"
         >
-          <i class="fas fa-sign-out-alt"></i>
+          <i class="fas fa-sign-out-alt text-white"></i>
         </button>
       </div>
       <div
         id="chatMessages"
-        class="flex-grow p-4 overflow-y-auto scrollbar-custom"
+        class="flex-grow content overflow-y-auto scrollbar-custom"
       ></div>
     </div>
     <div class="chatroom-form">
@@ -92,7 +94,6 @@
             localStorage.setItem("token", data.token);
             localStorage.setItem("username", username);
             localStorage.setItem("userId", data.userId);
-            location.reload(); // Reload the page to ensure the username is set correctly
             return data.token;
           } else if (data.error === "Username already exists") {
             throw new Error(
@@ -102,6 +103,28 @@
             throw new Error(
               data.error || "Failed to authenticate. Please try again."
             );
+          }
+        }
+
+        async function promptUsername() {
+          let authenticated = false;
+          while (!authenticated) {
+            const username = prompt("Enter your username (max 64 characters):");
+            if (username) {
+              if (username.length > 64) {
+                alert("Username exceeds the maximum length of 64 characters.");
+                continue;
+              }
+              try {
+                await authenticate(username);
+                authenticated = true;
+                location.reload();
+              } catch (error) {
+                alert(error.message);
+              }
+            } else {
+              alert("Username is required.");
+            }
           }
         }
 
@@ -116,8 +139,6 @@
             });
           });
 
-          socket.on("disconnect", () => {});
-
           socket.on("userDisconnect", ({ username }) => {
             const user_name = localStorage.getItem("username");
             console.log("Disconnected from server.");
@@ -131,7 +152,7 @@
               location.reload();
             }
             const leftMessage = document.createElement("div");
-            leftMessage.innerHTML = `<p class="text-gray-400 text-sm">${username} left from room</p>`;
+            leftMessage.innerHTML = `<p class="text-gray-400 text-sm p-4">${username} left from room</p>`;
             chatMessages.appendChild(leftMessage);
             chatMessages.scrollTop = chatMessages.scrollHeight;
           });
@@ -139,7 +160,7 @@
           setupEventListeners();
         }
 
-        async function setupEventListeners() {
+        function setupEventListeners() {
           const chatMessages = document.getElementById("chatMessages");
           const chatInput = document.getElementById("chatInput");
           const sendButton = document.getElementById("sendButton");
@@ -154,29 +175,6 @@
 
             if (!token) {
               usernameAlert.classList.remove("hidden");
-              alert("Please set your username:");
-
-              async function promptUsername() {
-                let authenticated = false;
-                while (!authenticated) {
-                  const username = prompt("Enter your username:");
-                  if (username) {
-                    try {
-                      await authenticate(username);
-                      authenticated = true;
-                      location.reload();
-                    } catch (error) {
-                      alert(error.message);
-                    }
-                  } else {
-                    alert(
-                      "Username not set. Please refresh and set a username."
-                    );
-                    location.reload();
-                  }
-                }
-              }
-
               promptUsername();
             } else {
               roomNameElement.textContent = room;
@@ -271,7 +269,7 @@
                   msgDiv.classList.add("flex", "justify-end");
                   msgDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1 text-right">You</p>
-                <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none">
+                <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none break-words max-w-full">
                   <p dir="auto">${msg.message}</p>
                 </div>
                 <p class="text-xs text-gray-600 mt-1 text-right">${new Date().toLocaleTimeString()}</p>
@@ -280,7 +278,7 @@
                   msgDiv.classList.add("flex");
                   msgDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1">${msg.username}</p>
-                <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
+                <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none break-words max-w-full">
                   <p dir="auto">${msg.message}</p>
                 </div>
                 <p class="text-xs text-gray-600 mt-1">${new Date().toLocaleTimeString()}</p>
@@ -299,7 +297,7 @@
                   fileDiv.classList.add("flex", "justify-end");
                   fileDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1 text-right">You</p>
-                <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none">
+                <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none break-words max-w-full">
                   <div class="image-container mt-2">
                     <img src="${file.url}" alt="${file.fileName}">
                     <div class="download-overlay">
@@ -317,7 +315,7 @@
                   fileDiv.classList.add("flex");
                   fileDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1">${data.username}</p>
-                <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
+                <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none break-words max-w-full">
                   <div class="image-container mt-2">
                     <img src="${file.url}" alt="${file.fileName}">
                     <div class="download-overlay">
@@ -341,12 +339,18 @@
                 msgDiv.classList.add("mb-4", "flex", "justify-center");
                 msgDiv.innerHTML = `<div>
             <p class="text-sm text-gray-400 mb-1">${msg.username}</p>
-<div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
+            <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none break-words max-w-full">
                   <p dir="auto">${msg.message}</p>
                 </div>
           </div>`;
                 chatMessages.appendChild(msgDiv);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
+              });
+
+              socket.on("onlineUsers", (data) => {
+                const onlineCountElement =
+                  document.getElementById("onlineCount");
+                onlineCountElement.textContent = data.count;
               });
 
               logoutButton.addEventListener("click", () => {
@@ -375,7 +379,11 @@
           }
         });
 
-        connectSocket();
+        if (!token) {
+          promptUsername();
+        } else {
+          connectSocket();
+        }
       });
     </script>
   </body>

@@ -137,8 +137,30 @@ html {
   border-top: 1px solid #4a5568;
 }
 
+.fixed-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.content {
+  padding-top: 5rem;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 #chatMessages {
   flex: 1;
   padding-bottom: 60px;
   overflow-y: auto;
+}
+
+.break-words {
+  word-wrap: break-word;
+}
+
+.max-w-full {
+  max-width: 100%;
 }

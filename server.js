@@ -10,7 +10,6 @@ const { uploadFile } = require("./upload.js");
 const { v4: uuidv4 } = require("uuid");
 const session = require("express-session");
 
-// Load environment variables from .env file
 dotenv.config({ path: "./config.env" });
 
 const app = express();
@@ -20,6 +19,7 @@ const io = new SocketIOServer(server);
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 const SESSION_SECRET = process.env.SESSION_SECRET || "your_session_secret";
 const MAX_ROOM_ID_LENGTH = 20;
+const MAX_USERNAME_LENGTH = 24;
 const ROOM_ID_REGEX = /^[A-Za-z0-9-_@#$]+$/;
 
 app.use(
@@ -69,6 +69,9 @@ app.post("/login", async (req, res) => {
   const { username } = req.body;
   if (!username) {
     return res.status(400).json({ error: "Username is required" });
+  }
+  if (username.length > MAX_USERNAME_LENGTH) {
+    return res.status(400).json({ error: `Username exceeds the maximum length of ${MAX_USERNAME_LENGTH} characters` });
   }
   if (
     Array.from(activeUsers.values()).some((user) => user.username === username)
@@ -149,9 +152,12 @@ io.use(verifyJWT).on("connection", (socket) => {
     ).map((socketId) => io.sockets.sockets.get(socketId).username);
 
     io.to(room).emit("botMessage", {
-      username: "ChatBot",
+      username: "System",
       message: `Welcome ${socket.username}!<br />There are ${onlineUsers.length} users online.<br />Your username is ${socket.username} and you are in room ${room}.`,
     });
+
+    // Emit the number of online users to all clients in the room
+    io.to(room).emit("onlineUsers", { count: onlineUsers.length });
   });
 
   // Event handler for receiving chat messages

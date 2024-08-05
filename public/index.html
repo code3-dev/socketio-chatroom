@@ -31,6 +31,7 @@
           name="roomName"
           class="w-full p-2 mb-4 border rounded"
           required
+          maxlength="20"
         />
         <label for="username" class="block mb-2 text-lg">Your Username:</label>
         <input
@@ -39,6 +40,7 @@
           name="username"
           class="w-full p-2 mb-4 border rounded"
           required
+          maxlength="64"
         />
         <button
           type="submit"
@@ -133,7 +135,7 @@
                   }
                   if (!roomNameRegex.test(roomName)) {
                     throw new Error(
-                      `Invalid room Name format. Only alphanumeric characters (A-Z, a-z, 0-9) and special characters (-, _, @, #, $) are allowed`
+                      "Invalid room Name format. Only alphanumeric characters (A-Z, a-z, 0-9) and special characters (-, _, @, #, $) are allowed"
                     );
                   }
 
