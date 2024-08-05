@@ -83,6 +83,24 @@
         const errorAlert = document.getElementById("errorAlert");
         const loader = document.getElementById("loader");
 
+        // Function to check local storage changes
+        function checkLocalStorage() {
+          const storedUsername = localStorage.getItem("username");
+          const storedUserId = localStorage.getItem("userId");
+          const username = document.getElementById("username").value;
+          if ((storedUsername && storedUsername !== username) || !storedUserId) {
+            localStorage.removeItem("username");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userId");
+            alert(
+              "Username has been changed. Please enter your username again."
+            );
+            location.reload();
+          }
+        }
+
+        window.addEventListener("storage", checkLocalStorage);
+
         if (createRoomForm) {
           createRoomForm.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -104,6 +122,7 @@
                 if (response.ok) {
                   localStorage.setItem("token", data.token);
                   localStorage.setItem("username", username);
+                  localStorage.setItem("userId", data.userId);
 
                   // Check room name format
                   const roomNameRegex = /^[A-Za-z0-9-_@#$]+$/;

@@ -79,7 +79,7 @@
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         let socket;
-        let token;
+        const token = localStorage.getItem("token");
 
         async function authenticate(username) {
           const response = await fetch("/login", {
@@ -91,6 +91,7 @@
           if (response.ok && data.token) {
             localStorage.setItem("token", data.token);
             localStorage.setItem("username", username);
+            localStorage.setItem("userId", data.userId);
             location.reload(); // Reload the page to ensure the username is set correctly
             return data.token;
           } else if (data.error === "Username already exists") {
@@ -106,25 +107,36 @@
 
         function connectSocket() {
           socket = io({
-            auth: { token: localStorage.getItem("token") },
+            auth: { token: token },
           });
 
           socket.on("connect", () => {
-            console.log("Connected to server");
+            socket.on("user_name", ({ username }) => {
+              console.log("Connected to server: " + username);
+            });
           });
 
-          socket.on("disconnect", () => {
-            console.log("Disconnected from server. Retrying...");
-            retryConnection();
+          socket.on("disconnect", () => {});
+
+          socket.on("userDisconnect", ({ username }) => {
+            const user_name = localStorage.getItem("username");
+            console.log("Disconnected from server.");
+            if (user_name === username) {
+              localStorage.removeItem("token");
+              localStorage.removeItem("username");
+              localStorage.removeItem("userId");
+              alert(
+                "Disconnected from server. Please set your username again."
+              );
+              location.reload();
+            }
+            const leftMessage = document.createElement("div");
+            leftMessage.innerHTML = `<p class="text-gray-400 text-sm">${username} left from room</p>`;
+            chatMessages.appendChild(leftMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
           });
 
           setupEventListeners();
-        }
-
-        function retryConnection() {
-          setTimeout(() => {
-            connectSocket();
-          }, 2000);
         }
 
         async function setupEventListeners() {
@@ -154,14 +166,7 @@
                       authenticated = true;
                       location.reload();
                     } catch (error) {
-                      if (
-                        error.message ===
-                        "Username already exists. Please choose a different username."
-                      ) {
-                        alert(error.message);
-                      } else {
-                        alert(error.message);
-                      }
+                      alert(error.message);
                     }
                   } else {
                     alert(
@@ -172,10 +177,7 @@
                 }
               }
 
-              // Call promptUsername on load if no token is found
-              if (!localStorage.getItem("token")) {
-                promptUsername();
-              }
+              promptUsername();
             } else {
               roomNameElement.textContent = room;
               socket.emit("joinRoom", room);
@@ -230,7 +232,7 @@
                       uploadStatus.classList.add("hidden");
                     });
 
-                    socket.once("uploadError", (error) => {
+                    socket.once("uploadError", () => {
                       showError();
                     });
                   };
@@ -255,11 +257,10 @@
 
               socket.on("userJoined", ({ username }) => {
                 const joinedMessage = document.createElement("div");
-                joinedMessage.innerHTML = `
-            <p class="text-gray-400 text-sm">${username} joined the room</p>
-          `;
+                joinedMessage.innerHTML = `<p class="text-gray-400 text-sm">${username} joined the room</p>`;
                 chatMessages.appendChild(joinedMessage);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
+                socketUser = username;
               });
 
               socket.on("chatMessage", (msg) => {
@@ -268,8 +269,7 @@
 
                 if (msg.username === localStorage.getItem("username")) {
                   msgDiv.classList.add("flex", "justify-end");
-                  msgDiv.innerHTML = `
-              <div>
+                  msgDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1 text-right">You</p>
                 <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none">
                   <p dir="auto">${msg.message}</p>
@@ -278,8 +278,7 @@
               </div>`;
                 } else {
                   msgDiv.classList.add("flex");
-                  msgDiv.innerHTML = `
-              <div>
+                  msgDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1">${msg.username}</p>
                 <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
                   <p dir="auto">${msg.message}</p>
@@ -298,8 +297,7 @@
 
                 if (data.username === localStorage.getItem("username")) {
                   fileDiv.classList.add("flex", "justify-end");
-                  fileDiv.innerHTML = `
-              <div>
+                  fileDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1 text-right">You</p>
                 <div class="chat-bubble-right text-white p-4 rounded-2xl rounded-br-none">
                   <div class="image-container mt-2">
@@ -317,8 +315,7 @@
               </div>`;
                 } else {
                   fileDiv.classList.add("flex");
-                  fileDiv.innerHTML = `
-              <div>
+                  fileDiv.innerHTML = `<div>
                 <p class="text-sm text-gray-400 mb-1">${data.username}</p>
                 <div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
                   <div class="image-container mt-2">
@@ -335,8 +332,20 @@
                 <p class="text-xs text-gray-600 mt-1">${new Date().toLocaleTimeString()}</p>
               </div>`;
                 }
-
                 chatMessages.appendChild(fileDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              });
+
+              socket.on("botMessage", (msg) => {
+                const msgDiv = document.createElement("div");
+                msgDiv.classList.add("mb-4", "flex", "justify-center");
+                msgDiv.innerHTML = `<div>
+            <p class="text-sm text-gray-400 mb-1">${msg.username}</p>
+<div class="chat-bubble-left p-4 rounded-2xl rounded-bl-none">
+                  <p dir="auto">${msg.message}</p>
+                </div>
+          </div>`;
+                chatMessages.appendChild(msgDiv);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
               });
 
@@ -344,12 +353,27 @@
                 if (confirm("Are you sure you want to logout from the chat?")) {
                   localStorage.removeItem("token");
                   localStorage.removeItem("username");
+                  localStorage.removeItem("userId");
                   window.location.href = "/";
                 }
               });
             }
           }
         }
+
+        // Check local storage changes
+        window.addEventListener("storage", () => {
+          const storedUsername = localStorage.getItem("username");
+          const storedUserId = localStorage.getItem("userId");
+
+          if (!storedUsername || !storedUserId) {
+            alert("Session has changed. Please set your username again.");
+            localStorage.removeItem("username");
+            localStorage.removeItem("token");
+            localStorage.removeItem("userId");
+            window.location.href = "/";
+          }
+        });
 
         connectSocket();
       });
