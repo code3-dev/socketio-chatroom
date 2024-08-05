@@ -34,10 +34,7 @@ To install and run the project locally, follow these steps:
     npm install
     ```
 
-3. Open the `config.js` file and replace the placeholder with your Uploadcare public key:
-    ```javascript
-    const UPLOADCARE_PUBLIC_KEY = "your_public_key_here";
-    ```
+3. Edit `config.env` file.
 
 4. Start the server:
     ```bash
@@ -70,7 +67,7 @@ The server configuration is primarily managed through the `server.js` file. Here
 
 - **Express server setup**: Serves static files and handles main page routes.
 - **Socket.IO setup**: Manages socket events for joining rooms, sending messages, and uploading files.
-- **File uploads**: Handled via the Uploadcare API, with the logic in `config.js`.
+- **File uploads**: Handled via the Uploadcare API, with the logic in `upload.js`.
 
 ## Contributing
 
